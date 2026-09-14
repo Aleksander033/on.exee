@@ -23,7 +23,7 @@
 (function () {
   'use strict';
 
-  var DEFAULT_BASE_URL = 'http://127.0.0.1:4173/';
+  var DEFAULT_BASE_URL = 'https://onyxexe.vercel.app/';
   var CLIENT_FILE = 'index.html';
   var VERSION = '1.10.2';
   var MOUNT_KEY = 'kateronyx:mounting';
