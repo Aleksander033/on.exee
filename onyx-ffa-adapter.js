@@ -1,13 +1,17 @@
 /**
  * New-server adapter for ONYX (deo.onyx + PIXI + WASM create).
- * Me mbështetjen e plotë të TID-ve të qëndrueshme për multibox pa prishur lidhjet.
+ * Does not render, spawn, or open its own WebSocket.
+ * Load BEFORE deo.onyx so auto-connect uses wsUrl (?po=&tid=) instead of ?password=.
+ *
+ * Confirmed deo URL: wss://<host>?password=
+ * Confirmed FFA URL: wss://eu1.senpa.io:7101?po=<location.host>&tid=<32 hex>
+ * Confirmed auth: opcode 13. FFA uses UInt16 length + UTF-16; deo writeString16 uses UInt8 length.
  */
 (function (global) {
   'use strict';
 
   var NEW_FFA_HOST = 'eu1.senpa.io:7101';
   var NEW_FFA_IDS = { 'ffa-eu': 1, 'eu1.senpa.io:7101': 1 };
-  var TID_KEY = 'kateronyx:active-session-tid';
   var LEGACY_SUFFIX = '?password=';
 
   var cellInLog = 0;
@@ -27,29 +31,23 @@
     console.log('[NEW-SERVER] [' + tag + '] ' + msg);
   }
 
-  // Gjenerimi ose marrja e TID-së unike për këtë tab/sesion
-  function getSessionTid() {
-    try {
-      var existing = sessionStorage.getItem(TID_KEY) || '';
-      if (/^[a-f0-9]{32}$/.test(existing)) return existing;
-    } catch (_) {}
-
-    var hex;
-    try {
-      var bytes = new Uint8Array(16);
-      window.crypto.getRandomValues(bytes);
-      hex = Array.prototype.map.call(bytes, function (b) {
-        return ('0' + b.toString(16)).slice(-2);
-      }).join('');
-    } catch (_) {
-      hex = '00000000000000000000000000000000';
+  // Match Senpa's transport identity lifecycle: create one random 128-bit
+  // transport ID for each game connection and reuse it on that connection's
+  // reconnects for the lifetime of this page.
+  function createTransportId() {
+    if (!global.crypto || typeof global.crypto.getRandomValues !== 'function') {
+      throw new Error('Secure crypto.getRandomValues() is required to create a Senpa transport ID.');
     }
-
-    try { sessionStorage.setItem(TID_KEY, hex); } catch (_) {}
-    return hex;
+    var bytes = new Uint8Array(16);
+    global.crypto.getRandomValues(bytes);
+    return Array.prototype.map.call(bytes, function (byte) {
+      return byte.toString(16).padStart(2, '0');
+    }).join('');
   }
 
-  var sessionTid = getSessionTid();
+  // Index 0 belongs to Tab 1; index 1 belongs to Tab 2.
+  // These values remain stable across reconnects, just like Senpa's array.
+  var transportIds = [createTransportId(), createTransportId()];
 
   function selectedRaw() {
     var el = document.getElementById('servers');
@@ -97,11 +95,14 @@
     return isNewFfaHost(selectedRaw());
   }
 
-  // Funksioni zyrtar i Onyx për ndërtimin e URL-së, tani me TID-në e qëndrueshme të sesionit
-  function wsUrl(host) {
+  function wsUrl(host, connectionId) {
     host = mapHost(host);
     if (isNewFfaHost(host)) {
-      return 'wss://' + host + '?po=' + encodeURIComponent(location.host) + '&tid=' + sessionTid;
+      var connectionIndex = Number(connectionId) === 2 ? 1 : 0;
+      var query = new URLSearchParams();
+      query.set('po', global.location.host || 'senpa.io');
+      query.set('tid', transportIds[connectionIndex]);
+      return 'wss://' + host + '?' + query.toString();
     }
     return 'wss://' + host + LEGACY_SUFFIX;
   }
@@ -263,6 +264,17 @@
     }
   }
 
+  function multiboxOn() {
+    try {
+      var prefixes = ['ONYXPROD540-', 'ONYXPROD532-'];
+      for (var i = 0; i < prefixes.length; i++) {
+        var s = JSON.parse(localStorage.getItem(prefixes[i] + 'settings') || '{}') || {};
+        if (s.multiboxMode && s.multiboxMode !== 'off') return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   function hookSC() {
     var sc = global.SC;
     if (!sc || hooked) return !!hooked;
@@ -283,7 +295,7 @@
       syncFfaType();
       tab = tab || 1;
       if (isNewFfaHost(mapped)) {
-        log('CONNECT', 'host=' + mapped + ' tab=' + tab + ' url=' + wsUrl(mapped).replace(/([?&]tid=)[a-f0-9]+/i, '$1***'));
+        log('CONNECT', 'host=' + mapped + ' tab=' + tab + ' url=' + wsUrl(mapped, tab).replace(/([?&]tid=)[a-f0-9]+/i, '$1***'));
         log('ONYX-ENGINE', 'SC.init → deo WASM create() (single runtime)');
       } else {
         log('CONNECT', 'legacy host=' + mapped + ' tab=' + tab + ' suffix=?password=');
@@ -454,3 +466,4 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })(typeof window !== 'undefined' ? window : globalThis);
+
