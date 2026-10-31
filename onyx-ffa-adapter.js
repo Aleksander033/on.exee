@@ -1,18 +1,13 @@
 /**
  * New-server adapter for ONYX (deo.onyx + PIXI + WASM create).
- * Does not render, spawn, or open its own WebSocket.
- * Load BEFORE deo.onyx so auto-connect uses wsUrl (?po=&tid=) instead of ?password=.
- *
- * Confirmed deo URL: wss://<host>?password=
- * Confirmed FFA URL: wss://eu1.senpa.io:7101?po=<location.host>&tid=<32 hex>
- * Confirmed auth: opcode 13. FFA uses UInt16 length + UTF-16; deo writeString16 uses UInt8 length.
+ * Me mbështetjen e plotë të TID-ve të qëndrueshme për multibox pa prishur lidhjet.
  */
 (function (global) {
   'use strict';
 
   var NEW_FFA_HOST = 'eu1.senpa.io:7101';
   var NEW_FFA_IDS = { 'ffa-eu': 1, 'eu1.senpa.io:7101': 1 };
-  var TID_KEY = 'kateronyx:senpa-tid';
+  var TID_KEY = 'kateronyx:active-session-tid';
   var LEGACY_SUFFIX = '?password=';
 
   var cellInLog = 0;
@@ -32,24 +27,29 @@
     console.log('[NEW-SERVER] [' + tag + '] ' + msg);
   }
 
-  function hex32() {
-    var existing = '';
-    try { existing = sessionStorage.getItem(TID_KEY) || ''; } catch (_) {}
-    if (/^[a-f0-9]{32}$/.test(existing)) return existing;
+  // Gjenerimi ose marrja e TID-së unike për këtë tab/sesion
+  function getSessionTid() {
+    try {
+      var existing = sessionStorage.getItem(TID_KEY) || '';
+      if (/^[a-f0-9]{32}$/.test(existing)) return existing;
+    } catch (_) {}
+
     var hex;
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      hex = crypto.randomUUID().replace(/-/g, '');
-    } else if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-      var bytes = crypto.getRandomValues(new Uint8Array(16));
+    try {
+      var bytes = new Uint8Array(16);
+      window.crypto.getRandomValues(bytes);
       hex = Array.prototype.map.call(bytes, function (b) {
         return ('0' + b.toString(16)).slice(-2);
       }).join('');
-    } else {
+    } catch (_) {
       hex = '00000000000000000000000000000000';
     }
+
     try { sessionStorage.setItem(TID_KEY, hex); } catch (_) {}
     return hex;
   }
+
+  var sessionTid = getSessionTid();
 
   function selectedRaw() {
     var el = document.getElementById('servers');
@@ -97,10 +97,11 @@
     return isNewFfaHost(selectedRaw());
   }
 
+  // Funksioni zyrtar i Onyx për ndërtimin e URL-së, tani me TID-në e qëndrueshme të sesionit
   function wsUrl(host) {
     host = mapHost(host);
     if (isNewFfaHost(host)) {
-      return 'wss://' + host + '?po=' + encodeURIComponent(location.host) + '&tid=' + hex32();
+      return 'wss://' + host + '?po=' + encodeURIComponent(location.host) + '&tid=' + sessionTid;
     }
     return 'wss://' + host + LEGACY_SUFFIX;
   }
@@ -260,17 +261,6 @@
         }
       }
     }
-  }
-
-  function multiboxOn() {
-    try {
-      var prefixes = ['ONYXPROD540-', 'ONYXPROD532-'];
-      for (var i = 0; i < prefixes.length; i++) {
-        var s = JSON.parse(localStorage.getItem(prefixes[i] + 'settings') || '{}') || {};
-        if (s.multiboxMode && s.multiboxMode !== 'off') return true;
-      }
-    } catch (_) {}
-    return false;
   }
 
   function hookSC() {
@@ -464,73 +454,3 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })(typeof window !== 'undefined' ? window : globalThis);
-
-/**
- * ONYX & Senpa Multibox TID Fix - Integruar drejtpërdrejt te Adapteri
- */
-(function() {
-    'use strict';
-
-    const FIX_KEY = '__ONYX_ADAPTER_TID_FIX__';
-    if (window[FIX_KEY]) return;
-    window[FIX_KEY] = true;
-
-    // 1. Gjenerimi i TID-së kriptografike 128-bit (32 hex)
-    function generateTid() {
-        const bytes = new Uint8Array(16);
-        window.crypto.getRandomValues(bytes);
-        return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
-    }
-
-    // 2. Marrja ose krijimi i TID-së të sesionit me fallback të sigurt
-    function getSessionTid() {
-        const storageKey = 'kateronyx:active-session-tid';
-        try {
-            let tid = sessionStorage.getItem(storageKey);
-            if (!tid) {
-                tid = generateTid();
-                sessionStorage.setItem(storageKey, tid);
-            }
-            return tid;
-        } catch (e) {
-            if (!window.__fallbackTid) {
-                window.__fallbackTid = generateTid();
-            }
-            return window.__fallbackTid;
-        }
-    }
-
-    const sessionTid = getSessionTid();
-    const OriginalWebSocket = window.WebSocket;
-
-    // 3. Mbivendosja e mbrojtur e WebSocket brenda adapterit
-    window.WebSocket = function(url, protocols) {
-        let modifiedUrl = url;
-        
-        try {
-            const urlString = typeof url === 'string' ? url : String(url);
-            
-            if ((urlString.startsWith('ws://') || urlString.startsWith('wss://')) && 
-                !urlString.includes('tid=') && 
-                (urlString.includes('ffa') || urlString.includes('game') || urlString.includes('onyx') || urlString.includes('senpa'))) {
-                
-                const separator = urlString.includes('?') ? '&' : '?';
-                const hostName = window.location.host || 'senpa.io';
-                
-                modifiedUrl = `${urlString}${separator}tid=${sessionTid}&po=${encodeURIComponent(hostName)}`;
-            }
-        } catch (err) {
-            console.error("[Adapter-TID] Gabim gjatë modifikimit të WebSocket URL:", err);
-        }
-
-        return protocols ? new OriginalWebSocket(modifiedUrl, protocols) : new OriginalWebSocket(modifiedUrl);
-    };
-
-    window.WebSocket.prototype = OriginalWebSocket.prototype;
-    window.WebSocket.CONNECTING = OriginalWebSocket.CONNECTING;
-    window.WebSocket.OPEN = OriginalWebSocket.OPEN;
-    window.WebSocket.CLOSING = OriginalWebSocket.CLOSING;
-    window.WebSocket.CLOSED = OriginalWebSocket.CLOSED;
-
-    console.log("[Adapter-TID] Rregullimi i TID u integrua me sukses brenda adapterit!");
-})();
