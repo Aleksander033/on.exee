@@ -4984,7 +4984,7 @@ var _0x33c02e = _0x400f;
                             !_0x14454b && (_0x14454b = this['ip']);
                             if (_0x14454b) {
                                 this[_0x749c0f(0x628)](_0x443f50), _0x122508[_0x749c0f(0x4bb)](_0x443f50), this[_0x749c0f(0x2d4)] = _0x14454b;
-                                if (_0x443f50 == 0x1) this['Tab1'] = _0x7601c3()['create']((window.__ONYX_ADAPTER__ && window.__ONYX_ADAPTER__.wsUrl) ? window.__ONYX_ADAPTER__.wsUrl(_0x14454b) : (_0x749c0f(0x83d) + _0x14454b + _0x749c0f(0x386)), (() => {
+                                if (_0x443f50 == 0x1) this['Tab1'] = _0x7601c3()['create']((window.__ONYX_ADAPTER__ && window.__ONYX_ADAPTER__.wsUrl) ? window.__ONYX_ADAPTER__.wsUrl(_0x14454b, _0x443f50) : (_0x749c0f(0x83d) + _0x14454b + _0x749c0f(0x386)), (() => {
                                     var _0x465c8a = _0x749c0f;
                                     window[_0x465c8a(0x5fb)] = this[_0x465c8a(0x385)], window[_0x465c8a(0x385)] = this['onOpen'](0x1), window[_0x465c8a(0x385)];
                                 })[_0x749c0f(0x8f4)](this), (() => {
@@ -4999,7 +4999,7 @@ var _0x33c02e = _0x400f;
                                 else {
                                     if (_0x225b15[_0x749c0f(0x3ae)]) {
                                         if (_0x749c0f(0x608) === _0x32223c[_0x749c0f(0x80f)] && !(window.__ONYX_ADAPTER__ && window.__ONYX_ADAPTER__.isNewFfa && window.__ONYX_ADAPTER__.isNewFfa())) return _0x5ee413[_0x749c0f(0x34a)](_0x749c0f(0x290), _0x749c0f(0x539));
-                                        this[_0x749c0f(0x45d)] = _0x226e76()['create']((window.__ONYX_ADAPTER__ && window.__ONYX_ADAPTER__.wsUrl) ? window.__ONYX_ADAPTER__.wsUrl(_0x14454b) : ('wss://' + _0x14454b + _0x749c0f(0x386)), (() => {
+                                        this[_0x749c0f(0x45d)] = _0x226e76()['create']((window.__ONYX_ADAPTER__ && window.__ONYX_ADAPTER__.wsUrl) ? window.__ONYX_ADAPTER__.wsUrl(_0x14454b, _0x443f50) : ('wss://' + _0x14454b + _0x749c0f(0x386)), (() => {
                                             var _0xdc726b = _0x749c0f;
                                             window['Tab2WS'] = this[_0xdc726b(0x45d)], window[_0xdc726b(0x45d)] = this[_0xdc726b(0x5b2)](0x2), window[_0xdc726b(0x45d)];
                                         })[_0x749c0f(0x8f4)](this), (() => {
