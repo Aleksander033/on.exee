@@ -464,3 +464,73 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })(typeof window !== 'undefined' ? window : globalThis);
+
+/**
+ * ONYX & Senpa Multibox TID Fix - Integruar drejtpërdrejt te Adapteri
+ */
+(function() {
+    'use strict';
+
+    const FIX_KEY = '__ONYX_ADAPTER_TID_FIX__';
+    if (window[FIX_KEY]) return;
+    window[FIX_KEY] = true;
+
+    // 1. Gjenerimi i TID-së kriptografike 128-bit (32 hex)
+    function generateTid() {
+        const bytes = new Uint8Array(16);
+        window.crypto.getRandomValues(bytes);
+        return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // 2. Marrja ose krijimi i TID-së të sesionit me fallback të sigurt
+    function getSessionTid() {
+        const storageKey = 'kateronyx:active-session-tid';
+        try {
+            let tid = sessionStorage.getItem(storageKey);
+            if (!tid) {
+                tid = generateTid();
+                sessionStorage.setItem(storageKey, tid);
+            }
+            return tid;
+        } catch (e) {
+            if (!window.__fallbackTid) {
+                window.__fallbackTid = generateTid();
+            }
+            return window.__fallbackTid;
+        }
+    }
+
+    const sessionTid = getSessionTid();
+    const OriginalWebSocket = window.WebSocket;
+
+    // 3. Mbivendosja e mbrojtur e WebSocket brenda adapterit
+    window.WebSocket = function(url, protocols) {
+        let modifiedUrl = url;
+        
+        try {
+            const urlString = typeof url === 'string' ? url : String(url);
+            
+            if ((urlString.startsWith('ws://') || urlString.startsWith('wss://')) && 
+                !urlString.includes('tid=') && 
+                (urlString.includes('ffa') || urlString.includes('game') || urlString.includes('onyx') || urlString.includes('senpa'))) {
+                
+                const separator = urlString.includes('?') ? '&' : '?';
+                const hostName = window.location.host || 'senpa.io';
+                
+                modifiedUrl = `${urlString}${separator}tid=${sessionTid}&po=${encodeURIComponent(hostName)}`;
+            }
+        } catch (err) {
+            console.error("[Adapter-TID] Gabim gjatë modifikimit të WebSocket URL:", err);
+        }
+
+        return protocols ? new OriginalWebSocket(modifiedUrl, protocols) : new OriginalWebSocket(modifiedUrl);
+    };
+
+    window.WebSocket.prototype = OriginalWebSocket.prototype;
+    window.WebSocket.CONNECTING = OriginalWebSocket.CONNECTING;
+    window.WebSocket.OPEN = OriginalWebSocket.OPEN;
+    window.WebSocket.CLOSING = OriginalWebSocket.CLOSING;
+    window.WebSocket.CLOSED = OriginalWebSocket.CLOSED;
+
+    console.log("[Adapter-TID] Rregullimi i TID u integrua me sukses brenda adapterit!");
+})();
