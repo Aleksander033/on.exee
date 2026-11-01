@@ -12,6 +12,7 @@
 
   var NEW_FFA_HOST = 'eu1.senpa.io:7101';
   var NEW_FFA_IDS = { 'ffa-eu': 1, 'eu1.senpa.io:7101': 1 };
+  var TID_KEY = 'kateronyx:senpa-tid';
   var LEGACY_SUFFIX = '?password=';
 
   var cellInLog = 0;
@@ -31,23 +32,24 @@
     console.log('[NEW-SERVER] [' + tag + '] ' + msg);
   }
 
-  // Match Senpa's transport identity lifecycle: create one random 128-bit
-  // transport ID for each game connection and reuse it on that connection's
-  // reconnects for the lifetime of this page.
-  function createTransportId() {
-    if (!global.crypto || typeof global.crypto.getRandomValues !== 'function') {
-      throw new Error('Secure crypto.getRandomValues() is required to create a Senpa transport ID.');
+  function hex32() {
+    var existing = '';
+    try { existing = sessionStorage.getItem(TID_KEY) || ''; } catch (_) {}
+    if (/^[a-f0-9]{32}$/.test(existing)) return existing;
+    var hex;
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      hex = crypto.randomUUID().replace(/-/g, '');
+    } else if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      var bytes = crypto.getRandomValues(new Uint8Array(16));
+      hex = Array.prototype.map.call(bytes, function (b) {
+        return ('0' + b.toString(16)).slice(-2);
+      }).join('');
+    } else {
+      hex = '00000000000000000000000000000000';
     }
-    var bytes = new Uint8Array(16);
-    global.crypto.getRandomValues(bytes);
-    return Array.prototype.map.call(bytes, function (byte) {
-      return byte.toString(16).padStart(2, '0');
-    }).join('');
+    try { sessionStorage.setItem(TID_KEY, hex); } catch (_) {}
+    return hex;
   }
-
-  // Index 0 belongs to Tab 1; index 1 belongs to Tab 2.
-  // These values remain stable across reconnects, just like Senpa's array.
-  var transportIds = [createTransportId(), createTransportId()];
 
   function selectedRaw() {
     var el = document.getElementById('servers');
@@ -95,14 +97,10 @@
     return isNewFfaHost(selectedRaw());
   }
 
-  function wsUrl(host, connectionId) {
+  function wsUrl(host) {
     host = mapHost(host);
     if (isNewFfaHost(host)) {
-      var connectionIndex = Number(connectionId) === 2 ? 1 : 0;
-      var query = new URLSearchParams();
-      query.set('po', global.location.host || 'senpa.io');
-      query.set('tid', transportIds[connectionIndex]);
-      return 'wss://' + host + '?' + query.toString();
+      return 'wss://' + host + '?po=' + encodeURIComponent(location.host) + '&tid=' + hex32();
     }
     return 'wss://' + host + LEGACY_SUFFIX;
   }
@@ -295,7 +293,7 @@
       syncFfaType();
       tab = tab || 1;
       if (isNewFfaHost(mapped)) {
-        log('CONNECT', 'host=' + mapped + ' tab=' + tab + ' url=' + wsUrl(mapped, tab).replace(/([?&]tid=)[a-f0-9]+/i, '$1***'));
+        log('CONNECT', 'host=' + mapped + ' tab=' + tab + ' url=' + wsUrl(mapped).replace(/([?&]tid=)[a-f0-9]+/i, '$1***'));
         log('ONYX-ENGINE', 'SC.init → deo WASM create() (single runtime)');
       } else {
         log('CONNECT', 'legacy host=' + mapped + ' tab=' + tab + ' suffix=?password=');
@@ -466,4 +464,3 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })(typeof window !== 'undefined' ? window : globalThis);
-
