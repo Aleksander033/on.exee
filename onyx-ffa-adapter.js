@@ -38,8 +38,10 @@
     if (!global.crypto || typeof global.crypto.getRandomValues !== 'function') {
       throw new Error('Secure crypto.getRandomValues() is required to create a Senpa transport ID.');
     }
+
     var bytes = new Uint8Array(16);
     global.crypto.getRandomValues(bytes);
+
     return Array.prototype.map.call(bytes, function (byte) {
       return byte.toString(16).padStart(2, '0');
     }).join('');
@@ -63,19 +65,39 @@
 
   function mapHost(raw) {
     var host = String(raw || '').trim();
+
     if (!host) {
       var opt = selectedOption();
-      if (opt && opt.getAttribute('data-onyx-host')) host = opt.getAttribute('data-onyx-host');
-      else host = selectedRaw();
+      if (opt && opt.getAttribute('data-onyx-host')) {
+        host = opt.getAttribute('data-onyx-host');
+      } else {
+        host = selectedRaw();
+      }
     }
-    if (host === 'ffa-eu' || host.indexOf('ffa:') === 0) return NEW_FFA_HOST;
+
+    if (host === 'ffa-eu' || host.indexOf('ffa:') === 0) {
+      return NEW_FFA_HOST;
+    }
+
     var opt = selectedOption();
-    if (opt && (opt.getAttribute('data-onyx-id') === 'ffa-eu' || opt.value === 'ffa-eu')) {
+
+    if (opt && (
+      opt.getAttribute('data-onyx-id') === 'ffa-eu' ||
+      opt.value === 'ffa-eu'
+    )) {
       if (!host || host === 'ffa-eu') return NEW_FFA_HOST;
     }
-    if (opt && opt.getAttribute('data-onyx-host') && (host === 'ffa-eu' || host === opt.value && opt.getAttribute('data-onyx-id') === 'ffa-eu')) {
+
+    if (opt && opt.getAttribute('data-onyx-host') && (
+      host === 'ffa-eu' ||
+      (
+        host === opt.value &&
+        opt.getAttribute('data-onyx-id') === 'ffa-eu'
+      )
+    )) {
       return opt.getAttribute('data-onyx-host');
     }
+
     return host;
   }
 
@@ -86,70 +108,99 @@
 
   function isNewFfaSelected() {
     var opt = selectedOption();
+
     if (opt) {
       if (opt.getAttribute('data-onyx-id') === 'ffa-eu') return true;
       if (opt.getAttribute('data-onyx-type') === 'ffa') return true;
       if (NEW_FFA_IDS[opt.value]) return true;
       if (opt.getAttribute('data-onyx-host') === NEW_FFA_HOST) return true;
     }
+
     return isNewFfaHost(selectedRaw());
   }
 
   function wsUrl(host, connectionId) {
     host = mapHost(host);
+
     if (isNewFfaHost(host)) {
       var connectionIndex = Number(connectionId) === 2 ? 1 : 0;
       var query = new URLSearchParams();
+
       query.set('po', global.location.host || 'senpa.io');
       query.set('tid', transportIds[connectionIndex]);
+
       return 'wss://' + host + '?' + query.toString();
     }
+
     return 'wss://' + host + LEGACY_SUFFIX;
   }
 
   function readJwt() {
-    if (global.ONYXAuth && typeof global.ONYXAuth.getSenpaToken === 'function') {
+    if (
+      global.ONYXAuth &&
+      typeof global.ONYXAuth.getSenpaToken === 'function'
+    ) {
       var t = global.ONYXAuth.getSenpaToken();
       if (t) return String(t);
     }
+
     try {
       var a = localStorage.getItem('senpaio:session') || '';
       if (a && a.split('.').length >= 3) return a;
+
       var b = localStorage.getItem('senpa_auth_token') || '';
       if (b && b.split('.').length >= 3) return b;
     } catch (_) {}
+
     return 'null';
   }
 
   function toU8(buf) {
     if (!buf) return null;
+
     if (buf instanceof Uint8Array) return buf;
     if (buf instanceof ArrayBuffer) return new Uint8Array(buf);
+
     if (buf.buffer instanceof ArrayBuffer) {
-      return new Uint8Array(buf.buffer, buf.byteOffset || 0, buf.byteLength || buf.buffer.byteLength);
+      return new Uint8Array(
+        buf.buffer,
+        buf.byteOffset || 0,
+        buf.byteLength || buf.buffer.byteLength
+      );
     }
+
     return null;
   }
 
   function buildAuthPacket(token) {
     token = String(token || 'null');
+
     var buf = new ArrayBuffer(1 + 2 + token.length * 2);
     var v = new DataView(buf);
+
     v.setUint8(0, 0x0d);
     v.setUint16(1, token.length, true);
-    for (var i = 0; i < token.length; i++) v.setUint16(3 + i * 2, token.charCodeAt(i), true);
+
+    for (var i = 0; i < token.length; i++) {
+      v.setUint16(3 + i * 2, token.charCodeAt(i), true);
+    }
+
     return buf;
   }
 
   function sendDeoSpectate(sc) {
     if (!sc || typeof sc.send !== 'function') return;
+
     var buf = new ArrayBuffer(10);
     var v = new DataView(buf);
+
     v.setUint8(0, 20);
     v.setUint8(1, 1);
     v.setInt32(2, 0, true);
     v.setInt32(6, 0, true);
+
     origSend ? origSend.call(sc, buf, 1) : sc.send(buf, 1);
+
     log('PACKET-OUT', 'opcode=20 spectate-ready length=10 x=0 y=0');
   }
 
@@ -172,93 +223,198 @@
       40: 'chat',
       41: 'serverChat'
     };
+
     return names[op] || 'UNKNOWN';
   }
 
   function describePacket(u8, dir) {
     if (!u8 || !u8.length) return 'empty';
+
     var op = u8[0];
     var extra = opcodeName(op, dir);
+
     if (dir === 'in' && op === 0 && u8.length >= 7) {
-      var border = u8[1] | (u8[2] << 8) | (u8[3] << 16) | (u8[4] << 24);
+      var border =
+        u8[1] |
+        (u8[2] << 8) |
+        (u8[3] << 16) |
+        (u8[4] << 24);
+
       var clientId = u8[5] | (u8[6] << 8);
-      extra += ' border=' + (border >>> 0) + ' clientId=' + clientId;
+
+      extra += ' border=' + (border >>> 0) +
+        ' clientId=' + clientId;
     }
-    if (dir === 'out' && op === 13) extra += ' jwtChars=' + Math.max(0, (u8.length - 3) / 2);
-    return 'opcode=' + op + ' (' + extra + ') length=' + u8.length + ' dir=' + dir;
+
+    if (dir === 'out' && op === 13) {
+      extra += ' jwtChars=' + Math.max(0, (u8.length - 3) / 2);
+    }
+
+    return 'opcode=' + op +
+      ' (' + extra + ')' +
+      ' length=' + u8.length +
+      ' dir=' + dir;
   }
 
   function shouldLogPacket(u8, dir) {
     if (!u8 || !u8.length) return true;
+
     var op = u8[0];
+
     if (op === 20) {
       if (dir === 'in') {
         cellInLog++;
         return cellInLog <= 3;
       }
+
       cellOutLog++;
       return cellOutLog <= 3;
     }
+
     if (op === 30) return false;
+
     return true;
   }
 
   function seedExtrasServer() {
     var host = mapHost(selectedRaw()) || NEW_FFA_HOST;
-    var prefixes = ['ONYXPROD540-', 'ONYXPROD532-'];
+
+    var prefixes = [
+      'ONYXPROD540-',
+      'ONYXPROD532-'
+    ];
+
     var migrateKey = 'ONYXPROD540-ffaHostV19';
     var migrated = false;
-    try { migrated = localStorage.getItem(migrateKey) === '1'; } catch (_) {}
+
+    try {
+      migrated = localStorage.getItem(migrateKey) === '1';
+    } catch (_) {}
+
     for (var i = 0; i < prefixes.length; i++) {
       var key = prefixes[i] + 'extras';
       var data = {};
-      try { data = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (_) { data = {}; }
-      var stale = !data.server || data.server === 'ffa-eu' || String(data.server).indexOf('ffa:') === 0;
+
+      try {
+        data = JSON.parse(localStorage.getItem(key) || '{}') || {};
+      } catch (_) {
+        data = {};
+      }
+
+      var stale =
+        !data.server ||
+        data.server === 'ffa-eu' ||
+        String(data.server).indexOf('ffa:') === 0;
+
       if (!migrated || stale) {
         data.server = host;
-        try { localStorage.setItem(key, JSON.stringify(data)); } catch (_) {}
+
+        try {
+          localStorage.setItem(key, JSON.stringify(data));
+        } catch (_) {}
+
         log('CONNECT', 'seeded extras.server=' + host);
       }
     }
-    try { localStorage.setItem(migrateKey, '1'); } catch (_) {}
+
+    try {
+      localStorage.setItem(migrateKey, '1');
+    } catch (_) {}
   }
 
   function seedChatType() {
-    var prefixes = ['ONYXPROD540-', 'ONYXPROD532-'];
+    var prefixes = [
+      'ONYXPROD540-',
+      'ONYXPROD532-'
+    ];
+
     var migrateKey = 'ONYXPROD540-chatroomV198';
     var migrated = false;
-    try { migrated = localStorage.getItem(migrateKey) === '1'; } catch (_) {}
+
+    try {
+      migrated = localStorage.getItem(migrateKey) === '1';
+    } catch (_) {}
+
     for (var i = 0; i < prefixes.length; i++) {
       var key = prefixes[i] + 'settings';
       var data = {};
-      try { data = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (_) { data = {}; }
-      if (!migrated && (!data.chatType || data.chatType === 'normal' || data.chatType === 'popup')) {
+
+      try {
+        data = JSON.parse(localStorage.getItem(key) || '{}') || {};
+      } catch (_) {
+        data = {};
+      }
+
+      if (
+        !migrated &&
+        (
+          !data.chatType ||
+          data.chatType === 'normal' ||
+          data.chatType === 'popup'
+        )
+      ) {
         data.chatType = 'chatroom';
-        try { localStorage.setItem(key, JSON.stringify(data)); } catch (_) {}
-        log('ONYX-ENGINE', 'chatType → chatroom (Senpa persistent list)');
+
+        try {
+          localStorage.setItem(key, JSON.stringify(data));
+        } catch (_) {}
+
+        log(
+          'ONYX-ENGINE',
+          'chatType → chatroom (Senpa persistent list)'
+        );
       }
     }
-    try { localStorage.setItem(migrateKey, '1'); } catch (_) {}
+
+    try {
+      localStorage.setItem(migrateKey, '1');
+    } catch (_) {}
   }
 
   function asSet(value) {
     if (value instanceof Set) return value;
-    if (Array.isArray(value)) return new Set(value);
+
+    if (Array.isArray(value)) {
+      return new Set(value);
+    }
+
     return new Set();
   }
 
   function syncFfaType() {
     if (!isNewFfaSelected()) return;
-    if (global.zt && typeof global.zt === 'object') global.zt.ffaServerType = true;
-    var keys = ['cellsIDTab1', 'cellsIDTab2'];
-    var roots = [global.__ONYX_GS__, global.gs, global];
+
+    if (global.zt && typeof global.zt === 'object') {
+      global.zt.ffaServerType = true;
+    }
+
+    var keys = [
+      'cellsIDTab1',
+      'cellsIDTab2'
+    ];
+
+    var roots = [
+      global.__ONYX_GS__,
+      global.gs,
+      global
+    ];
+
     for (var r = 0; r < roots.length; r++) {
       var obj = roots[r];
+
       if (!obj || typeof obj !== 'object') continue;
+
       for (var k = 0; k < keys.length; k++) {
-        if (obj[keys[k]] != null && typeof obj[keys[k]].has !== 'function') {
+        if (
+          obj[keys[k]] != null &&
+          typeof obj[keys[k]].has !== 'function'
+        ) {
           obj[keys[k]] = asSet(obj[keys[k]]);
-          log('GAME-STATE', 'converted ' + keys[k] + ' Array → Set');
+
+          log(
+            'GAME-STATE',
+            'converted ' + keys[k] + ' Array → Set'
+          );
         }
       }
     }
@@ -266,175 +422,390 @@
 
   function multiboxOn() {
     try {
-      var prefixes = ['ONYXPROD540-', 'ONYXPROD532-'];
+      var prefixes = [
+        'ONYXPROD540-',
+        'ONYXPROD532-'
+      ];
+
       for (var i = 0; i < prefixes.length; i++) {
-        var s = JSON.parse(localStorage.getItem(prefixes[i] + 'settings') || '{}') || {};
-        if (s.multiboxMode && s.multiboxMode !== 'off') return true;
+        var s = JSON.parse(
+          localStorage.getItem(prefixes[i] + 'settings') || '{}'
+        ) || {};
+
+        if (s.multiboxMode && s.multiboxMode !== 'off') {
+          return true;
+        }
       }
     } catch (_) {}
+
     return false;
   }
 
   function hookSC() {
     var sc = global.SC;
+
     if (!sc || hooked) return !!hooked;
-    if (typeof sc.init !== 'function' || typeof sc.send !== 'function') return false;
+
+    if (
+      typeof sc.init !== 'function' ||
+      typeof sc.send !== 'function'
+    ) {
+      return false;
+    }
 
     origInit = sc.init.bind(sc);
     origSend = sc.send.bind(sc);
-    origOnMessage = typeof sc.onMessage === 'function' ? sc.onMessage.bind(sc) : null;
-    origOnClose = typeof sc.onClose === 'function' ? sc.onClose.bind(sc) : null;
-    origOnError = typeof sc.onError === 'function' ? sc.onError.bind(sc) : null;
+
+    origOnMessage =
+      typeof sc.onMessage === 'function'
+        ? sc.onMessage.bind(sc)
+        : null;
+
+    origOnClose =
+      typeof sc.onClose === 'function'
+        ? sc.onClose.bind(sc)
+        : null;
+
+    origOnError =
+      typeof sc.onError === 'function'
+        ? sc.onError.bind(sc)
+        : null;
 
     sc.init = function (host, tab) {
       var mapped = mapHost(host);
+
       lastConnectHost = mapped;
       spectateSent = false;
       cellInLog = 0;
       cellOutLog = 0;
+
       syncFfaType();
+
       tab = tab || 1;
+
       if (isNewFfaHost(mapped)) {
-        log('CONNECT', 'host=' + mapped + ' tab=' + tab + ' url=' + wsUrl(mapped, tab).replace(/([?&]tid=)[a-f0-9]+/i, '$1***'));
-        log('ONYX-ENGINE', 'SC.init → deo WASM create() (single runtime)');
+        log(
+          'CONNECT',
+          'host=' + mapped +
+          ' tab=' + tab +
+          ' url=' + wsUrl(mapped, tab).replace(
+            /([?&]tid=)[a-f0-9]+/i,
+            '$1***'
+          )
+        );
+
+        log(
+          'ONYX-ENGINE',
+          'SC.init → deo WASM create() (single runtime)'
+        );
       } else {
-        log('CONNECT', 'legacy host=' + mapped + ' tab=' + tab + ' suffix=?password=');
+        log(
+          'CONNECT',
+          'legacy host=' + mapped +
+          ' tab=' + tab +
+          ' suffix=?password='
+        );
       }
+
       try {
         var result = origInit(mapped, tab);
       } catch (err) {
         if (tab === 2) {
-          log('CONNECT', 'tab=2 create failed — ' + (err && err.message || err));
+          log(
+            'CONNECT',
+            'tab=2 create failed — ' +
+            (err && err.message || err)
+          );
           return;
         }
+
         throw err;
       }
-      if (tab === 1 && isNewFfaHost(mapped) && typeof origInit === 'function') {
-        if (wasmWaitTimer) clearInterval(wasmWaitTimer);
+
+      if (
+        tab === 1 &&
+        isNewFfaHost(mapped) &&
+        typeof origInit === 'function'
+      ) {
+        if (wasmWaitTimer) {
+          clearInterval(wasmWaitTimer);
+        }
+
         var n = 0;
-        log('CONNECT', 'waiting for deo WASM create() then tab=2');
+
+        log(
+          'CONNECT',
+          'waiting for deo WASM create() then tab=2'
+        );
+
         wasmWaitTimer = setInterval(function () {
           n++;
+
           if (sc.Tab1) {
             if (!sc.Tab2) {
-              try { origInit(mapped, 2); } catch (err) {
-                log('CONNECT', 'tab=2 retry — ' + (err && err.message || err));
+              try {
+                origInit(mapped, 2);
+              } catch (err) {
+                log(
+                  'CONNECT',
+                  'tab=2 retry — ' +
+                  (err && err.message || err)
+                );
               }
             }
+
             if (sc.Tab2 || n > 40) {
               clearInterval(wasmWaitTimer);
               wasmWaitTimer = null;
-              log('CONNECT', sc.Tab2 ? 'tab=1 and tab=2 connected' : 'tab=2 still missing after wait (tab=1 kept)');
+
+              log(
+                'CONNECT',
+                sc.Tab2
+                  ? 'tab=1 and tab=2 connected'
+                  : 'tab=2 still missing after wait (tab=1 kept)'
+              );
             }
+
             return;
           }
+
           if (n > 40) {
             clearInterval(wasmWaitTimer);
             wasmWaitTimer = null;
-            log('CONNECT', 'wasm create() still missing after wait');
+
+            log(
+              'CONNECT',
+              'wasm create() still missing after wait'
+            );
+
             return;
           }
-          try { origInit(mapped, 1); } catch (_) {}
+
+          try {
+            origInit(mapped, 1);
+          } catch (_) {}
         }, 250);
       }
+
       return result;
     };
 
     sc.send = function (buf, tab) {
       var u8 = toU8(buf);
-      if (u8 && u8.length && isNewFfaHost(lastConnectHost || selectedRaw())) {
+
+      if (
+        u8 &&
+        u8.length &&
+        isNewFfaHost(lastConnectHost || selectedRaw())
+      ) {
         if (u8[0] === 0x0d) {
           var jwt = readJwt();
+
           buf = buildAuthPacket(jwt);
           u8 = toU8(buf);
+
           if (jwt === 'null' && !jwtNullWarned) {
             jwtNullWarned = true;
-            console.warn('[AUTH] no senpaio:session — sending jwt=null (Jaxx guest)');
+
+            console.warn(
+              '[AUTH] no senpaio:session — sending jwt=null (Jaxx guest)'
+            );
           }
-          log('AUTH', 'opcode=13 UInt16-length jwt=' + (jwt === 'null' ? 'null' : 'session') + ' chars=' + String(jwt).length);
+
+          log(
+            'AUTH',
+            'opcode=13 UInt16-length jwt=' +
+            (jwt === 'null' ? 'null' : 'session') +
+            ' chars=' + String(jwt).length
+          );
         }
-        if (shouldLogPacket(u8, 'out')) log('PACKET-OUT', describePacket(u8, 'out') + ' tab=' + (tab || 1));
+
+        if (shouldLogPacket(u8, 'out')) {
+          log(
+            'PACKET-OUT',
+            describePacket(u8, 'out') +
+            ' tab=' + (tab || 1)
+          );
+        }
       }
+
       return origSend(buf, tab);
     };
 
     if (origOnMessage) {
       sc.onMessage = function (data, tab) {
         var u8 = toU8(data);
+
         var result = origOnMessage(data, tab);
-        if (u8 && u8.length && isNewFfaHost(lastConnectHost || selectedRaw())) {
-          if (shouldLogPacket(u8, 'in')) log('PACKET-IN', describePacket(u8, 'in') + ' tab=' + (tab || 1));
+
+        if (
+          u8 &&
+          u8.length &&
+          isNewFfaHost(lastConnectHost || selectedRaw())
+        ) {
+          if (shouldLogPacket(u8, 'in')) {
+            log(
+              'PACKET-IN',
+              describePacket(u8, 'in') +
+              ' tab=' + (tab || 1)
+            );
+          }
+
           if (u8[0] === 0) {
-            log('HANDSHAKE', describePacket(u8, 'in'));
-            log('GAME-STATE', 'serverInfo received — deo worldUpdate/PIXI path');
+            log(
+              'HANDSHAKE',
+              describePacket(u8, 'in')
+            );
+
+            log(
+              'GAME-STATE',
+              'serverInfo received — deo worldUpdate/PIXI path'
+            );
+
             if (!spectateSent) {
               spectateSent = true;
-              try { sendDeoSpectate(sc); } catch (err) {
-                log('INPUT', 'spectate-ready skip ' + (err && err.message || err));
+
+              try {
+                sendDeoSpectate(sc);
+              } catch (err) {
+                log(
+                  'INPUT',
+                  'spectate-ready skip ' +
+                  (err && err.message || err)
+                );
               }
             }
           }
-          if (u8[0] === 8) log('AUTH', 'server opcode=8 → deo auth()');
-          if (u8[0] === 7) log('HANDSHAKE', 'server captcha opcode=7 — deo sends opcode 14');
+
+          if (u8[0] === 8) {
+            log(
+              'AUTH',
+              'server opcode=8 → deo auth()'
+            );
+          }
+
+          if (u8[0] === 7) {
+            log(
+              'HANDSHAKE',
+              'server captcha opcode=7 — deo sends opcode 14'
+            );
+          }
         }
+
         return result;
       };
     }
 
     if (origOnClose) {
       sc.onClose = function (tab) {
-        log('DISCONNECT', 'tab=' + (tab || 1));
+        log(
+          'DISCONNECT',
+          'tab=' + (tab || 1)
+        );
+
         spectateSent = false;
+
         return origOnClose(tab);
       };
     }
 
     if (origOnError) {
       sc.onError = function (tab) {
-        log('DISCONNECT', 'error tab=' + (tab || 1));
+        log(
+          'DISCONNECT',
+          'error tab=' + (tab || 1)
+        );
+
         return origOnError(tab);
       };
     }
 
     hooked = true;
-    log('ONYX-ENGINE', 'adapter wrapped SC.init/send/onMessage');
+
+    log(
+      'ONYX-ENGINE',
+      'adapter wrapped SC.init/send/onMessage'
+    );
+
     syncFfaType();
+
     return true;
   }
 
   function bindMenu() {
     var servers = document.getElementById('servers');
+
     if (servers && !servers.__onyxAdapterBound) {
       servers.__onyxAdapterBound = true;
+
       servers.addEventListener('change', function () {
         var host = mapHost(servers.value);
-        log('CONNECT', 'menu host=' + host + ' newFfa=' + isNewFfaHost(host));
+
+        log(
+          'CONNECT',
+          'menu host=' + host +
+          ' newFfa=' + isNewFfaHost(host)
+        );
+
         syncFfaType();
       });
     }
+
     if (!document.__onyxAdapterPlayBound) {
       document.__onyxAdapterPlayBound = true;
+
       document.addEventListener('click', function (e) {
-        var play = e.target && e.target.closest && e.target.closest('#button-play');
+        var play =
+          e.target &&
+          e.target.closest &&
+          e.target.closest('#button-play');
+
         if (!play) return;
+
         syncFfaType();
-        log('INPUT', 'PLAY → deo.onyx #button-play (not ONYXFfa)');
+
+        log(
+          'INPUT',
+          'PLAY → deo.onyx #button-play (not ONYXFfa)'
+        );
       }, true);
     }
   }
 
   function installWasmLocate() {
     global.k = global.k || {};
+
     global.k.locateFile = function (name, path) {
       name = String(name || '');
-      if (global.__KATERONYX_WASM89_BLOB__ && /89\.wasm/i.test(name) && !/899\.wasm/i.test(name)) {
+
+      if (
+        global.__KATERONYX_WASM89_BLOB__ &&
+        /89\.wasm/i.test(name) &&
+        !/899\.wasm/i.test(name)
+      ) {
         return global.__KATERONYX_WASM89_BLOB__;
       }
-      if (global.__KATERONYX_WASM_BLOB__) return global.__KATERONYX_WASM_BLOB__;
-      if (/89\.wasm/i.test(name) && !/899\.wasm/i.test(name)) return (path || '') + '89.wasm';
+
+      if (global.__KATERONYX_WASM_BLOB__) {
+        return global.__KATERONYX_WASM_BLOB__;
+      }
+
+      if (
+        /89\.wasm/i.test(name) &&
+        !/899\.wasm/i.test(name)
+      ) {
+        return (path || '') + '89.wasm';
+      }
+
       return (path || '') + (name || '899.wasm');
     };
-    if (global.__KATERONYX_WASM_BLOB__) log('ONYX-ENGINE', 'locateFile → wasm blobs (game+89)');
+
+    if (global.__KATERONYX_WASM_BLOB__) {
+      log(
+        'ONYX-ENGINE',
+        'locateFile → wasm blobs (game+89)'
+      );
+    }
   }
 
   function boot() {
@@ -442,17 +813,35 @@
     seedExtrasServer();
     seedChatType();
     bindMenu();
+
     if (!hookSC()) {
       var n = 0;
+
       var t = setInterval(function () {
         n++;
+
         bindMenu();
-        if (hookSC() || n > 80) clearInterval(t);
+
+        if (hookSC() || n > 80) {
+          clearInterval(t);
+        }
       }, 100);
     }
-    log('ONYX-ENGINE', 'adapter ready PIXI/deo path — onyx-ffa.js not loaded');
-    log('RENDER', '#canvas PIXI (deo) — #gameCanvas hidden');
-    log('DECODE', 'deo suffix 0x386="?password=" 0x83d="wss://" — FFA adds ?po=&tid=');
+
+    log(
+      'ONYX-ENGINE',
+      'adapter ready PIXI/deo path — onyx-ffa.js not loaded'
+    );
+
+    log(
+      'RENDER',
+      '#canvas PIXI (deo) — #gameCanvas hidden'
+    );
+
+    log(
+      'DECODE',
+      'deo suffix 0x386="?password=" 0x83d="wss://" — FFA adds ?po=&tid='
+    );
   }
 
   global.__ONYX_ADAPTER__ = {
@@ -461,10 +850,13 @@
     isNewFfa: isNewFfaSelected,
     readJwt: readJwt
   };
+
   global.ONYXFfaAdapter = global.__ONYX_ADAPTER__;
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
-  else boot();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
 })(typeof window !== 'undefined' ? window : globalThis);
-
-
