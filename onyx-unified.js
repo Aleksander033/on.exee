@@ -46,7 +46,7 @@
       { id: 'ffa-eu', label: 'EU FFA - SENPA.IO', value: 'eu1.senpa.io:7101', type: 'ffa', host: 'eu1.senpa.io:7101', wsUrl: 'wss://eu1.senpa.io:7101', protocol: 'onyx-deo' },
       { label: 'EU FFA LEGACY - SENPA.IO', value: 'eu.senpa.io:2001' },
       { label: 'NA FFA - SENPA.IO', value: 'us.senpa.io:2001' },
-      { label: 'EU DUAL - SENPA.IO', value: 'eu.senpa.io:1200' },
+      { label: 'EU DUAL - SENPA.IO', value: 'eu1.senpa.io:7106' },
       { label: 'NA DUAL - SENPA.IO', value: 'us.senpa.io:2002' },
       { label: 'EU MEGA - SENPA.IO', value: 'eu.senpa.io:9999' },
       { label: 'NA MEGA - SENPA.IO', value: 'us.senpa.io:4002' },
