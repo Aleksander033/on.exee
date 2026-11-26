@@ -4,14 +4,25 @@
  * Load BEFORE deo.onyx so auto-connect uses wsUrl (?po=&tid=) instead of ?password=.
  *
  * Confirmed deo URL: wss://<host>?password=
- * Confirmed FFA URL: wss://eu1.senpa.io:7101?po=<location.host>&tid=<32 hex>
+ * Confirmed FFA URL pattern: wss://<FFA host>?po=<location.host>&tid=<32 hex>
+ * Supports the original 7101 host and KESHUT on 7106 (same FFA URL pattern).
  * Confirmed auth: opcode 13. FFA uses UInt16 length + UTF-16; deo writeString16 uses UInt8 length.
  */
 (function (global) {
   'use strict';
 
+  // Keep 7101 as the original FFA alias/default, and recognize KESHUT 7106
+  // as another host using the same Senpa FFA transport (po + tid).
   var NEW_FFA_HOST = 'eu1.senpa.io:7101';
-  var NEW_FFA_IDS = { 'ffa-eu': 1, 'eu1.senpa.io:7101': 1 };
+  var NEW_FFA_HOSTS = {
+    'eu1.senpa.io:7101': 1,
+    'eu1.senpa.io:7106': 1
+  };
+  var NEW_FFA_IDS = {
+    'ffa-eu': 1,
+    'eu1.senpa.io:7101': 1,
+    'eu1.senpa.io:7106': 1
+  };
   var LEGACY_SUFFIX = '?password=';
 
   var cellInLog = 0;
@@ -81,7 +92,7 @@
 
   function isNewFfaHost(host) {
     host = mapHost(host);
-    return host === NEW_FFA_HOST || host.indexOf(NEW_FFA_HOST) === 0;
+    return !!NEW_FFA_HOSTS[host];
   }
 
   function isNewFfaSelected() {
@@ -90,7 +101,8 @@
       if (opt.getAttribute('data-onyx-id') === 'ffa-eu') return true;
       if (opt.getAttribute('data-onyx-type') === 'ffa') return true;
       if (NEW_FFA_IDS[opt.value]) return true;
-      if (opt.getAttribute('data-onyx-host') === NEW_FFA_HOST) return true;
+      var dataHost = opt.getAttribute('data-onyx-host');
+      if (dataHost && NEW_FFA_HOSTS[dataHost]) return true;
     }
     return isNewFfaHost(selectedRaw());
   }
@@ -466,5 +478,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })(typeof window !== 'undefined' ? window : globalThis);
+
+
 
 
