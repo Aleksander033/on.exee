@@ -1,3 +1,14 @@
+/* ONYX-FIX: per-tab integrity routing (two WASM instances share one global channel). */
+window.__onyxClaimIntegrity = function (tab) {
+  var claim = function () {
+    var ch = window.CanvasCaptureMediaStreamTrack;
+    if (!ch || !ch.contextBufferFactory) return;
+    (window.__onyxIntegrity || (window.__onyxIntegrity = {}))[tab] = ch.contextBufferFactory;
+    ch.contextBufferFactory = null;
+  };
+  claim();
+  queueMicrotask(claim);
+};
 var _0x33c02e = _0x400f;
 (function (_0x28912b, _0x398125) {
     var _0x5a4f2d = _0x400f,
@@ -4991,6 +5002,7 @@ var _0x33c02e = _0x400f;
                                     var _0x32bb2b = _0x749c0f;
                                     this[_0x32bb2b(0x205)](0x1);
                                 })[_0x749c0f(0x8f4)](this), (_0x2ad50e => {
+                                    window.__onyxClaimIntegrity && window.__onyxClaimIntegrity(0x1); /* ONYX-FIX: integrity payload belongs to the tab whose message produced it */
                                     this['onMessage'](_0x2ad50e, 0x1);
                                 })[_0x749c0f(0x8f4)](this), (() => {
                                     var _0x19033a = _0x749c0f;
@@ -5007,6 +5019,7 @@ var _0x33c02e = _0x400f;
                                             this[_0x2b4c5f(0x205)](0x2);
                                         })[_0x749c0f(0x8f4)](this), (_0x4a14cb => {
                                             var _0xf4cbdb = _0x749c0f;
+                                            window.__onyxClaimIntegrity && window.__onyxClaimIntegrity(0x2);
                                             this[_0xf4cbdb(0x3d9)](_0x4a14cb, 0x2);
                                         })[_0x749c0f(0x8f4)](this), (() => {
                                             var _0x5aad64 = _0x749c0f;
@@ -6543,8 +6556,8 @@ var _0x33c02e = _0x400f;
                         var _0xa35975 = _0x3f9881;
                         if (this['connected'](_0x213522)) {
                             const _0x455a83 = (window.ONYXAuth && typeof window.ONYXAuth.getSenpaToken === 'function' && window.ONYXAuth.getSenpaToken()) || (window.__ONYX_ADAPTER__ && window.__ONYX_ADAPTER__.readJwt && window.__ONYX_ADAPTER__.readJwt()) || 'null',
-                                _0x133ad7 = new _0x2ccfdf(0x1 + 0x2 * ((_0x455a83['length'] || 0x0) + 0x1));
-                            _0x133ad7['writeUInt8'](0xd), _0x133ad7[_0xa35975(0x707)](_0x455a83), _0x1ee324[_0xa35975(0x730)](_0x133ad7[_0xa35975(0x77a)], _0x213522);
+                                _0x133ad7 = new _0x2ccfdf(0x3 + 0x2 * (_0x455a83['length'] || 0x0));
+                            _0x133ad7['writeUInt8'](0xd), _0x133ad7['writeLongString16'](_0x455a83) /* ONYX-FIX auth: u16 length like the official client */, _0x1ee324[_0xa35975(0x730)](_0x133ad7[_0xa35975(0x77a)], _0x213522);
                         }
                     }
                 }, {
@@ -6552,10 +6565,10 @@ var _0x33c02e = _0x400f;
                     'value': function (_0x57dc06) {
                         var _0x46d667 = _0x3f9881;
                         if (this[_0x46d667(0x5d7)](_0x57dc06) && (_0x57dc06 == 0x1 && !_0x1b521e[_0x46d667(0x35d)] || _0x57dc06 == 0x2 && !_0x1b521e['isAliveTab2'])) {
-                            const _0x4e618c = new _0x2ccfdf();
+                            const __onyxTok = ((window.ONYXAuth && typeof window.ONYXAuth.getSenpaToken === 'function' && window.ONYXAuth.getSenpaToken()) || (window.__ONYX_ADAPTER__ && window.__ONYX_ADAPTER__.readJwt && window.__ONYX_ADAPTER__.readJwt()) || ''); const _0x4e618c = new _0x2ccfdf(0x8 + 0x2 * (0x40 + __onyxTok.length));
                             _0x4e618c[_0x46d667(0x3e3)](0xa);
                             const _0x45493d = _0x57dc06 == 0x1 ? _0x1b521e[_0x46d667(0x4fc)] : _0x1b521e[_0x46d667(0x754)];
-                            _0x4e618c['writeString16'](_0x45493d), _0x1ee324[_0x46d667(0x730)](_0x4e618c['buffer'], _0x57dc06);
+                            _0x4e618c['writeString16'](String(_0x45493d || '').slice(0, 0x3c)), __onyxTok && _0x4e618c['writeLongString16'](__onyxTok) /* ONYX-FIX nick+token */, _0x1ee324[_0x46d667(0x730)](_0x4e618c['buffer'], _0x57dc06);
                         }
                     }
                 }, {
@@ -6572,8 +6585,8 @@ var _0x33c02e = _0x400f;
                     'value': function (_0x5733df) {
                         var _0x1d8036 = _0x3f9881;
                         if (this[_0x1d8036(0x5d7)](_0x5733df) && (_0x5733df == 0x1 && !_0x1b521e[_0x1d8036(0x35d)] || _0x5733df == 0x2 && !_0x1b521e[_0x1d8036(0x24c)])) {
-                            const _0x525bbe = new _0x2ccfdf();
-                            _0x525bbe[_0x1d8036(0x3e3)](0x15), _0x525bbe[_0x1d8036(0x3e3)](0x0), _0x525bbe['writeString16'](''), _0x1ee324['send'](_0x525bbe['buffer'], _0x5733df);
+                            const __onyxSkinTok = ((window.ONYXAuth && typeof window.ONYXAuth.getSenpaToken === 'function' && window.ONYXAuth.getSenpaToken()) || (window.__ONYX_ADAPTER__ && window.__ONYX_ADAPTER__.readJwt && window.__ONYX_ADAPTER__.readJwt()) || ''); const _0x525bbe = new _0x2ccfdf(0x8 + 0x2 * __onyxSkinTok.length);
+                            _0x525bbe[_0x1d8036(0x3e3)](0x15), _0x525bbe[_0x1d8036(0x3e3)](0x0), _0x525bbe['writeUInt8'](0x0), __onyxSkinTok && _0x525bbe['writeLongString16'](__onyxSkinTok), _0x1ee324['send'](_0x525bbe['buffer'], _0x5733df); /* ONYX-FIX skin+token, then hat like the official client */ const __onyxHat = new _0x2ccfdf(0x6); __onyxHat['writeUInt8'](0x19), __onyxHat['writeUInt8'](0x0), __onyxHat['writeUInt32'](0x0), _0x1ee324['send'](__onyxHat['buffer'], _0x5733df);
                         }
                     }
                 }, {
@@ -6933,7 +6946,11 @@ var _0x33c02e = _0x400f;
                                     _0x446f71[_0x1cc8e1(0x81e)]();
                                 }, 0xbb8), setInterval(function () {
                                     var _0x431cdc = _0x378694;
-                                    window[_0x431cdc(0x881)] = window['CanvasCaptureMediaStreamTrack'] || {}, CanvasCaptureMediaStreamTrack['contextBufferFactory'] ? (_0x225b15[_0x431cdc(0x3ae)] ? _0x4271db['tab'] == 0x1 ? _0x7601c3()[_0x431cdc(0x5e8)](0x9, CanvasCaptureMediaStreamTrack[_0x431cdc(0x228)]) : _0x226e76()[_0x431cdc(0x5e8)](0x9, CanvasCaptureMediaStreamTrack['contextBufferFactory']) : _0x7601c3()[_0x431cdc(0x5e8)](0x9, CanvasCaptureMediaStreamTrack['contextBufferFactory']), CanvasCaptureMediaStreamTrack['contextBufferFactory'] = null) : _0x517fc7[_0x431cdc(0x730)]();
+                                    /* ONYX-FIX: hand each integrity payload back to the WASM instance (tab) that produced it; a tab that sent one skips this tick's mouse, like the official client */
+                                    var __sent1 = false, __sent2 = false, __p = window.__onyxIntegrity || (window.__onyxIntegrity = {});
+                                    if (__p[1]) { try { _0x7601c3()['_alloc'](0x9, __p[1]); } catch (e) {} __p[1] = null; __sent1 = true; }
+                                    if (__p[2]) { try { _0x226e76()['_alloc'](0x9, __p[2]); } catch (e) {} __p[2] = null; __sent2 = true; }
+                                    window['CanvasCaptureMediaStreamTrack'] = window['CanvasCaptureMediaStreamTrack'] || {}, CanvasCaptureMediaStreamTrack['contextBufferFactory'] ? (_0x225b15[_0x431cdc(0x3ae)] ? _0x4271db['tab'] == 0x1 ? _0x7601c3()[_0x431cdc(0x5e8)](0x9, CanvasCaptureMediaStreamTrack['contextBufferFactory']) : _0x226e76()[_0x431cdc(0x5e8)](0x9, CanvasCaptureMediaStreamTrack['contextBufferFactory']) : _0x7601c3()[_0x431cdc(0x5e8)](0x9, CanvasCaptureMediaStreamTrack['contextBufferFactory']), CanvasCaptureMediaStreamTrack['contextBufferFactory'] = null) : (!__sent1 && !__sent2 && _0x517fc7[_0x431cdc(0x730)]());
                                 }, 0x28), _0x225b15[_0x378694(0x8e7)]();
                             } catch (_0x3eaadd) { }
                         }
@@ -7004,7 +7021,7 @@ var _0x33c02e = _0x400f;
         0xed: (_0x19e745, _0x203435, _0x4bf5b8) => {
             var _0x568a9c = _0x33c02e,
                 _0xb249db = '/',
-                _0x3bca02 = typeof _0x3bca02 !== _0x568a9c(0x548) ? _0x3bca02 : {},
+                _0x3bca02 = typeof _0x3bca02 !== _0x568a9c(0x548) ? _0x3bca02 : {}, /* ONYX-FIX: WASM from the userscript blobs via locateFile (no fetch/XHR patch) */ __onyxLoc__0x3bca02 = (window.__ONYX_LOCATE_WASM__ && !_0x3bca02.locateFile && (_0x3bca02.locateFile = window.__ONYX_LOCATE_WASM__)),
                 _0x4d8eeb = {},
                 _0x52c661;
             for (_0x52c661 in _0x3bca02) {
@@ -8470,7 +8487,7 @@ var _0x33c02e = _0x400f;
         0xee: (_0x399821, _0x56b9f0, _0x28b268) => {
             var _0x4135cf = _0x33c02e,
                 _0x417c3f = '/',
-                _0x15a1da = typeof _0x15a1da !== _0x4135cf(0x548) ? _0x15a1da : {},
+                _0x15a1da = typeof _0x15a1da !== _0x4135cf(0x548) ? _0x15a1da : {}, /* ONYX-FIX: WASM from the userscript blobs via locateFile (no fetch/XHR patch) */ __onyxLoc__0x15a1da = (window.__ONYX_LOCATE_WASM__ && !_0x15a1da.locateFile && (_0x15a1da.locateFile = window.__ONYX_LOCATE_WASM__)),
                 _0x4c420a = {},
                 _0x5062b3;
             for (_0x5062b3 in _0x15a1da) {
@@ -9929,7 +9946,7 @@ var _0x33c02e = _0x400f;
         },
         0x191: (_0x59cf5b, _0x2da7f7, _0x459a28) => {
             var _0x52dd6f = _0x33c02e,
-                _0x7f589 = typeof _0x7f589 != _0x52dd6f(0x548) ? _0x7f589 : {},
+                _0x7f589 = typeof _0x7f589 != _0x52dd6f(0x548) ? _0x7f589 : {}, /* ONYX-FIX: WASM from the userscript blobs via locateFile (no fetch/XHR patch) */ __onyxLoc__0x7f589 = (window.__ONYX_LOCATE_WASM__ && !_0x7f589.locateFile && (_0x7f589.locateFile = window.__ONYX_LOCATE_WASM__)),
                 _0x354924 = Object['assign']({}, _0x7f589),
                 _0x2caafa = [],
                 _0x54bd9e = _0x52dd6f(0x523),
@@ -10839,3 +10856,4 @@ function _0x3b02() {
     };
     return _0x3b02();
 }
+
