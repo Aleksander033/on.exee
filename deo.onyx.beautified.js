@@ -1954,7 +1954,7 @@ var _0x33c02e = _0x400f;
                             case 0x29:
                                 try {
                                     var _0xsenpaSrvKind = _0x105f50['readUInt8'](),
-                                        _0xsenpaSrvMsg = _0x105f50['readString16']();
+                                        _0xsenpaSrvMsg = (function (r) { var n = r['readUInt16'](), t = ''; for (var i = 0; i < n; i++) t += String.fromCharCode(r['readUInt16']()); return t; })(_0x105f50); /* ONYX-FIX op41 long string */ console.log('[ONYX-FIX] SERVER message kind=' + _0xsenpaSrvKind + ': ' + _0xsenpaSrvMsg);
                                     if (_0x2ae446 === 0x1 && _0xsenpaSrvKind) {
                                         var _0xsenpaSrvText = 0x2 === _0xsenpaSrvKind && _0xsenpaSrvMsg['indexOf']('|') > -0x1 ? _0xsenpaSrvMsg['split']('|')[0x1] : _0xsenpaSrvMsg;
                                         _0x5ee413['alert']('SERVER', _0xsenpaSrvText);
@@ -2087,6 +2087,13 @@ var _0x33c02e = _0x400f;
                             0x1 === _0x1d576c ? _0x1b521e[_0x582c3b(0x518)] = _0x18f2a0 : _0x1b521e[_0x582c3b(0x5f4)] = _0x18f2a0, _0x225b15[_0x582c3b(0x3ae)] ? _0x1386bc[_0x582c3b(0x693)](_0x18f2a0) : _0x1386bc[_0x582c3b(0x454)](_0x18f2a0);
                         }
                         _0x446f71[_0x582c3b(0x27d)](_0x1d576c);
+                        /* ONYX-FIX: SPAWN sent before the server's INIT (opcode 0) is ignored; send it now */
+                        (window.__onyxInit || (window.__onyxInit = {}))[_0x1d576c] = true;
+                        if (window.__onyxPendingSpawn && window.__onyxPendingSpawn[_0x1d576c]) {
+                            var __pend = window.__onyxPendingSpawn[_0x1d576c];
+                            window.__onyxPendingSpawn[_0x1d576c] = null;
+                            setTimeout(function () { __pend(); }, 60);
+                        }
                     }
                 }]), _0x3673f9;
             }())();
@@ -6506,6 +6513,7 @@ var _0x33c02e = _0x400f;
                     'key': 'init',
                     'value': function (_0x156d1b) {
                         var _0x893f9b = _0x400f;
+                        (window.__onyxInit || (window.__onyxInit = {}))[_0x156d1b] = false; /* ONYX-FIX */
                         _0x156d1b == 0x1 ? this[_0x893f9b(0x76d)] = ![] : this[_0x893f9b(0x8d9)] = ![], 0x1 === _0x156d1b ? _0x1ee324[_0x893f9b(0x2f3)] = !0x0 : 0x2 === _0x156d1b && (_0x1ee324['connectedTab2'] = !0x0);
                     }
                 }, {
@@ -6609,11 +6617,22 @@ var _0x33c02e = _0x400f;
                     'value': function (_0x2292aa) {
                         var _0x14eb90 = _0x3f9881,
                             _0x441279 = _0x2292aa || _0x1b521e[_0x14eb90(0x91f)];
+                        var __self = this, __tab = _0x441279, __attempt = typeof arguments[1] === 'number' ? arguments[1] : 1;
+                        if (this['connected'](_0x441279) && !(window.__onyxInit || {})[_0x441279]) {
+                            (window.__onyxPendingSpawn || (window.__onyxPendingSpawn = {}))[_0x441279] = function () { __self['spawn'](__tab); };
+                            console.log('[ONYX-FIX] spawn tab=' + _0x441279 + ' waits for server INIT');
+                            return;
+                        }
                         if (this['connected'](_0x441279) && (_0x441279 === 0x1 && !_0x1b521e[_0x14eb90(0x35d)] || _0x441279 === 0x2 && !_0x1b521e[_0x14eb90(0x24c)])) {
                             this[_0x14eb90(0x27d)](_0x441279);
                             const _0x1d94c5 = new _0x2ccfdf(0x2);
                             _0x1d94c5[_0x14eb90(0x3e3)](0x0), _0x1d94c5[_0x14eb90(0x3e3)](0x0), _0x1ee324['send'](_0x1d94c5['buffer'], _0x441279);
                             if (_0x1e4a8a[_0x14eb90(0x30d)]) _0x1e4a8a['isSpectating'] = !0x1;
+                            clearTimeout((window.__onyxSpawnRetry || (window.__onyxSpawnRetry = {}))[__tab]);
+                            window.__onyxSpawnRetry[__tab] = setTimeout(function () {
+                                var alive = __tab === 0x1 ? _0x1b521e['isAliveTab1'] : _0x1b521e['isAliveTab2'];
+                                if (!alive && __attempt < 0x8 && __self['connected'](__tab)) { console.log('[ONYX-FIX] spawn tab=' + __tab + ' retry ' + (__attempt + 1)); __self['spawn'](__tab, __attempt + 1); }
+                            }, 0x320);
                         }
                     }
                 }, {
@@ -10856,4 +10875,3 @@ function _0x3b02() {
     };
     return _0x3b02();
 }
-
